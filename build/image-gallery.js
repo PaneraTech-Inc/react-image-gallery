@@ -32,9 +32,11 @@ var _resizeObserverPolyfill2 = _interopRequireDefault(_resizeObserverPolyfill);
 
 var _propTypes = require('prop-types');
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+var _wheelZoom = require('./wheel-zoom');
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+var _wheelZoom2 = _interopRequireDefault(_wheelZoom);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -56,6 +58,9 @@ function isEnterOrSpaceKey(event) {
   return key === ENTER_KEY_CODE || key === SPACEBAR_KEY_CODE;
 }
 
+// window.JcWheelZoom = JcWheelZoom;
+window.jcWheelZoom;
+
 var ImageGallery = function (_React$Component) {
   _inherits(ImageGallery, _React$Component);
 
@@ -63,51 +68,6 @@ var ImageGallery = function (_React$Component) {
     _classCallCheck(this, ImageGallery);
 
     var _this = _possibleConstructorReturn(this, (ImageGallery.__proto__ || Object.getPrototypeOf(ImageGallery)).call(this, props));
-
-    _this.buttonZoomHandler = function (flag) {
-      if (!_this.props.showZoomControls) {
-        return;
-      }
-      var img = document.querySelector('.image-gallery-slides .center .image-gallery-image img');
-      _this.zoom(img, flag);
-    };
-
-    _this.mouseZoomHandler = function (e) {
-      if (!_this.props.showZoomControls) {
-        return;
-      }
-      var img = e.target;
-      _this.preventScrollHandler(e);
-      var wheelData = e.nativeEvent.wheelDelta / 120;
-      if (wheelData > 0) {
-        _this.zoomIn(img);
-      } else {
-        _this.zoomOut(img);
-      }
-    };
-
-    _this.zoomIn = function (img) {
-      _this.zoom(img, true);
-    };
-
-    _this.zoomOut = function (img) {
-      _this.zoom(img, false);
-    };
-
-    _this.zoomMouseMoveHandler = function (e) {
-      _this.preventScrollHandler(e);
-      var imgPartent = e.target.parentElement;
-      var img = imgPartent.querySelector('img');
-      var imageParentPos = imgPartent.getBoundingClientRect();
-      var transform = (e.pageX - imageParentPos.left) / img.width * 100 + '% ' + (e.pageY - imageParentPos.top) / img.height * 100 + '%';
-      img.style.transformOrigin = transform;
-    };
-
-    _this.preventScrollHandler = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      // e.nativeEvent.preventDefault();
-    };
 
     _this.state = {
       currentIndex: props.startIndex,
@@ -163,6 +123,17 @@ var ImageGallery = function (_React$Component) {
       window.addEventListener('mousedown', this.handleMouseDown);
       this.initResizeObserver(this.imageGallerySlideWrapper);
       this.addScreenChangeEvent();
+      setTimeout(function () {
+        window.jcWheelZoom = _wheelZoom2.default.create('.image-gallery-slides .center img', {
+          maxScale: 10
+        });
+      }, 0);
+
+      window.addEventListener('resize', function () {
+        if (jcWheelZoom) {
+          window.jcWheelZoom.prepare();
+        }
+      });
     }
   }, {
     key: 'componentDidUpdate',
@@ -233,6 +204,9 @@ var ImageGallery = function (_React$Component) {
           onSlide = _props2.onSlide,
           slideDuration = _props2.slideDuration;
 
+      window.jcWheelZoom = _wheelZoom2.default.create('.image-gallery-slides .center img', {
+        maxScale: 10
+      });
       this.transitionTimer = window.setTimeout(function () {
         if (isTransitioning) {
           _this2.setState({ isTransitioning: !isTransitioning });
@@ -907,6 +881,10 @@ var ImageGallery = function (_React$Component) {
           slideDuration = _props12.slideDuration;
 
 
+      if (window.jcWheelZoom) {
+        window.jcWheelZoom.resetZoom();
+      }
+
       if (!isTransitioning) {
         if (event) {
           if (this.intervalId) {
@@ -1114,24 +1092,8 @@ var ImageGallery = function (_React$Component) {
       }
     }
   }, {
-    key: 'zoom',
-    value: function zoom(img, flag) {
-      var initZoom = this.state.initZoom;
-
-      var newZoom = void 0;
-      if (flag) {
-        newZoom = initZoom < 5 ? initZoom + 0.5 : initZoom;
-      } else {
-        newZoom = initZoom > 1 ? initZoom - 0.5 : initZoom;
-      }
-      img.style.transform = 'scale(' + newZoom + ')';
-      this.setState({ initZoom: newZoom });
-    }
-  }, {
     key: 'renderItem',
     value: function renderItem(item) {
-      var _React$createElement;
-
       var _props14 = this.props,
           onImageError = _props14.onImageError,
           onImageLoad = _props14.onImageLoad,
@@ -1141,9 +1103,14 @@ var ImageGallery = function (_React$Component) {
 
       return _react2.default.createElement(
         'div',
-        (_React$createElement = { className: 'image-gallery-image',
-          onMouseMove: this.zoomMouseMoveHandler
-        }, _defineProperty(_React$createElement, 'onMouseMove', this.zoomMouseMoveHandler), _defineProperty(_React$createElement, 'onScroll', this.preventScrollHandler), _defineProperty(_React$createElement, 'onWheel', this.preventScrollHandler), _defineProperty(_React$createElement, 'onTouchMove', this.preventScrollHandler), _defineProperty(_React$createElement, 'onTouchEnd', this.preventScrollHandler), _React$createElement),
+        { className: 'image-gallery-image'
+          // onMouseMove={this.zoomMouseMoveHandler}
+          // onMouseMove={this.zoomMouseMoveHandler}
+          , onScroll: this.preventScrollHandler,
+          onWheel: this.preventScrollHandler,
+          onTouchMove: this.preventScrollHandler,
+          onTouchEnd: this.preventScrollHandler
+        },
         item.imageSet ? _react2.default.createElement(
           'picture',
           {
@@ -1158,24 +1125,29 @@ var ImageGallery = function (_React$Component) {
               type: source.type
             });
           }),
+          _react2.default.createElement(
+            'div',
+            { style: {
+                height: "600px", width: "100%", overflow: 'auto', position: 'relative', cursor: 'move' } },
+            _react2.default.createElement('img', {
+              alt: item.originalAlt,
+              src: item.original
+            })
+          )
+        ) : _react2.default.createElement(
+          'div',
+          { style: {
+              height: "600px", width: "100%", overflow: 'auto', position: 'relative', cursor: 'move' } },
           _react2.default.createElement('img', {
-            alt: item.originalAlt,
             src: item.original,
-            onWheel: showZoomControls && this.mouseZoomHandler
+            alt: item.originalAlt,
+            srcSet: item.srcSet,
+            sizes: item.sizes,
+            title: item.originalTitle,
+            onLoad: onImageLoad,
+            onError: handleImageError
           })
-        ) : _react2.default.createElement('img', {
-          src: item.original,
-          alt: item.originalAlt,
-          srcSet: item.srcSet,
-          sizes: item.sizes,
-          title: item.originalTitle,
-          onLoad: onImageLoad,
-          onError: handleImageError,
-          onWheel: showZoomControls && this.mouseZoomHandler,
-          onScroll: this.preventScrollHandler,
-          onTouchMove: this.preventScrollHandler,
-          onTouchEnd: this.preventScrollHandler
-        }),
+        ),
         item.description && _react2.default.createElement(
           'span',
           { className: 'image-gallery-description' },
@@ -1393,7 +1365,7 @@ var ImageGallery = function (_React$Component) {
             bullets
           )
         ),
-        showZoomControls && renderZoomControlButton(this.buttonZoomHandler),
+        showZoomControls && renderZoomControlButton.call(this.buttonZoomHandler),
         showFullscreenButton && renderFullscreenButton(this.toggleFullScreen, isFullscreen),
         showIndex && _react2.default.createElement(
           'div',
@@ -1618,7 +1590,8 @@ ImageGallery.defaultProps = {
         type: 'button',
         'aria-label': 'Zoom In',
         onClick: function onClick(e) {
-          zoomHandler(true);
+          window.jcWheelZoom.zoomUp();
+          // zoomHandler(true);
         }
       }),
       _react2.default.createElement('button', {
@@ -1626,7 +1599,8 @@ ImageGallery.defaultProps = {
         type: 'button',
         'aria-label': 'Zoom Out',
         onClick: function onClick(e) {
-          zoomHandler(false);
+          window.jcWheelZoom.zoomDown();
+          // zoomHandler(false);
         }
       })
     );

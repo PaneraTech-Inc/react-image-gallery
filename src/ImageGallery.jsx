@@ -13,6 +13,8 @@ import {
   string,
 } from 'prop-types';
 
+import JcWheelZoom from "./wheel-zoom";
+
 const screenChangeEvents = [
   'fullscreenchange',
   'MSFullscreenChange',
@@ -31,6 +33,9 @@ function isEnterOrSpaceKey(event) {
   const SPACEBAR_KEY_CODE = 62;
   return key === ENTER_KEY_CODE || key === SPACEBAR_KEY_CODE;
 }
+
+// window.JcWheelZoom = JcWheelZoom;
+window.jcWheelZoom;
 
 export default class ImageGallery extends React.Component {
   static propTypes = {
@@ -187,7 +192,8 @@ export default class ImageGallery extends React.Component {
           type="button"
           aria-label="Zoom In"
           onClick={(e) => {
-            zoomHandler(true);
+            window.jcWheelZoom.zoomUp();
+            // zoomHandler(true);
           }}
         ></button>
         <button
@@ -195,7 +201,8 @@ export default class ImageGallery extends React.Component {
           type="button"
           aria-label="Zoom Out"
           onClick={(e) => {
-            zoomHandler(false);
+            window.jcWheelZoom.zoomDown();
+            // zoomHandler(false);
           }}
         ></button>
       </div>
@@ -265,6 +272,17 @@ export default class ImageGallery extends React.Component {
     window.addEventListener('mousedown', this.handleMouseDown);
     this.initResizeObserver(this.imageGallerySlideWrapper);
     this.addScreenChangeEvent();
+    setTimeout(() => {
+      window.jcWheelZoom = JcWheelZoom.create('.image-gallery-slides .center img', {
+        maxScale: 10
+      });
+    },0)
+    
+    window.addEventListener('resize', () => {
+      if(jcWheelZoom){
+        window.jcWheelZoom.prepare();
+      }
+    });
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -327,6 +345,9 @@ export default class ImageGallery extends React.Component {
   onSliding() {
     const { currentIndex, isTransitioning } = this.state;
     const { onSlide, slideDuration } = this.props;
+    window.jcWheelZoom = JcWheelZoom.create('.image-gallery-slides .center img', {
+      maxScale: 10
+    });
     this.transitionTimer = window.setTimeout(() => {
       if (isTransitioning) {
         this.setState({ isTransitioning: !isTransitioning });
@@ -891,6 +912,10 @@ export default class ImageGallery extends React.Component {
     const { currentIndex, isTransitioning } = this.state;
     const { items, slideDuration } = this.props;
 
+    if (window.jcWheelZoom) {
+      window.jcWheelZoom.resetZoom();
+    }
+
     if (!isTransitioning) {
       if (event) {
         if (this.intervalId) {
@@ -1069,61 +1094,6 @@ export default class ImageGallery extends React.Component {
     }
   }
 
-  buttonZoomHandler = (flag) => {
-    if (!this.props.showZoomControls) {
-      return;
-    }
-    const img = document.querySelector('.image-gallery-slides .center .image-gallery-image img');
-    this.zoom(img, flag);
-  }
-
-  mouseZoomHandler = e => {
-    if (!this.props.showZoomControls) {
-      return;
-    }
-    const img = e.target;
-    this.preventScrollHandler(e);
-    var wheelData = e.nativeEvent.wheelDelta / 120;    
-    if (wheelData > 0) {
-      this.zoomIn(img)
-    } else {
-      this.zoomOut(img)
-    }
-  }
-
-  zoomIn = (img) => {
-    this.zoom(img, true);
-  }
-  zoomOut = (img) => {
-    this.zoom(img, false);
-  }
-
-  zoom(img, flag) {
-    const { initZoom } = this.state;
-    let newZoom;
-    if (flag) {
-      newZoom = initZoom < 5 ? initZoom + 0.5 : initZoom;
-    } else {
-      newZoom = initZoom > 1 ? initZoom - 0.5 : initZoom;
-    }
-    img.style.transform = `scale(${newZoom})`;
-    this.setState({ initZoom: newZoom });
-  }
-
-  zoomMouseMoveHandler = (e) => {
-    this.preventScrollHandler(e)
-    const imgPartent = e.target.parentElement;
-    const img = imgPartent.querySelector('img');   
-    const imageParentPos = imgPartent.getBoundingClientRect();
-    const transform = ((e.pageX - imageParentPos.left) / img.width) * 100 + '% ' + ((e.pageY - imageParentPos.top) / img.height) * 100 + '%'
-    img.style.transformOrigin = transform;
-  }
-
-  preventScrollHandler = e => {
-    e.preventDefault();
-    e.stopPropagation();
-    // e.nativeEvent.preventDefault();
-  }
 
   renderItem(item) {
     const { onImageError, onImageLoad, showZoomControls } = this.props;
@@ -1131,8 +1101,8 @@ export default class ImageGallery extends React.Component {
 
     return (
       <div className="image-gallery-image"
-        onMouseMove={this.zoomMouseMoveHandler}
-        onMouseMove={this.zoomMouseMoveHandler}
+        // onMouseMove={this.zoomMouseMoveHandler}
+        // onMouseMove={this.zoomMouseMoveHandler}
         onScroll={this.preventScrollHandler}
         onWheel={this.preventScrollHandler}
         onTouchMove={this.preventScrollHandler}
@@ -1154,13 +1124,17 @@ export default class ImageGallery extends React.Component {
                   />
                 ))
               }
-              <img
-                alt={item.originalAlt}
-                src={item.original}
-                onWheel={showZoomControls && this.mouseZoomHandler}                
-              />
+              <div style={{
+                height: "600px", width: "100%", overflow: 'auto', position:'relative', cursor:'move'}}>
+                <img
+                  alt={item.originalAlt}
+                  src={item.original}
+                />
+              </div>
             </picture>
           ) : (
+            <div style={{
+              height: "600px", width: "100%", overflow: 'auto', position:'relative', cursor:'move'}}>
             <img
               src={item.original}
               alt={item.originalAlt}
@@ -1169,11 +1143,8 @@ export default class ImageGallery extends React.Component {
               title={item.originalTitle}
               onLoad={onImageLoad}
               onError={handleImageError}
-              onWheel={showZoomControls && this.mouseZoomHandler}  
-              onScroll={this.preventScrollHandler}
-              onTouchMove={this.preventScrollHandler}
-              onTouchEnd={this.preventScrollHandler}  
             />
+            </div>
           )
         }
 
@@ -1396,7 +1367,7 @@ export default class ImageGallery extends React.Component {
             </div>
           )
         }
-        {showZoomControls && renderZoomControlButton(this.buttonZoomHandler)}
+        {showZoomControls && renderZoomControlButton.call(this.buttonZoomHandler)}
         {showFullscreenButton && renderFullscreenButton(this.toggleFullScreen, isFullscreen)}
         {
           showIndex && (
